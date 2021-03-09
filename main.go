@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
+	"os"
 	"strconv"
 	"time"
 )
@@ -27,7 +28,7 @@ type HeadacheMHEntity struct {
 }
 
 func main() {
-	token := "1683093684:AAFH4DVZAqPQcd6pUS3LS5gm4CbFfLNnuhk" //os.Getenv("TOKEN")
+	token := os.Getenv("TG_BOT_TOKEN")
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		panic(err)

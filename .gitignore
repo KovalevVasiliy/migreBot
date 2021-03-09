@@ -15,3 +15,6 @@
 # vendor/
 # env vars
 .env
+
+.idea/
+
