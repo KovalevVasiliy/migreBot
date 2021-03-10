@@ -56,6 +56,8 @@ func main() {
                 handleGetMedicinesState(bot, &msg)
             case getMedicinesEfficacy:
                 handleGetMedicinesEfficacyState(bot, &msg)
+            case sendHeadachesEmail:
+                handleSendHeadachesEmailState(bot, &msg)
             case end:
                 handleEndState(bot, &msg)
             }
