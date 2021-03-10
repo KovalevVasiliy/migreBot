@@ -1,0 +1,48 @@
+version: "3.4"
+
+networks:
+  db_net:
+    external: true
+  default:
+
+services:
+  core: &src
+    env_file:
+      - .env
+      - database.env
+    container_name: core
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+    build:
+      context: ""
+      dockerfile: Docker/Dockerfile
+    volumes:
+      - ./src:/opt/app
+    networks:
+      - default
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+  redis:
+    restart: unless-stopped
+    image: redis
+    entrypoint: redis-server --appendonly yes
+    volumes:
+      - ./.redis:/data
+    ports:
+      - "6379:6379"
+  postgres:
+    container_name: postgres
+    image: postgres
+    ports:
+      - "5432:5432"
+    env_file:
+      - database.env
+    networks:
+      - db_net
+      - default
+    volumes:
+      - ./.docker_data/postgres:/var/lib/postgresql/data
