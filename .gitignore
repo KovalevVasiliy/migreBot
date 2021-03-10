@@ -17,4 +17,5 @@
 .env
 
 .idea/
-
+.redis/
+.docker_data/
