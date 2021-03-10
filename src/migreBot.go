@@ -27,7 +27,7 @@ const (
 )
 
 var PainLevelMap = map[PainLevelEnum]string {
-    veryLow : "не сильная боль",
+    veryLow : "несильная боль",
     low : "небольшая боль",
     medium : "средняя боль",
     high : "сильная боль",
