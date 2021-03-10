@@ -2,11 +2,16 @@ package main
 
 import (
     "encoding/json"
+    "fmt"
+    "github.com/360EntSecGroup-Skylar/excelize"
     "github.com/go-telegram-bot-api/telegram-bot-api"
     "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm/dialects/postgres"
+    "gopkg.in/gomail.v2"
     "log"
+    "os"
+    "regexp"
     "strconv"
     "unicode"
 )
@@ -20,6 +25,14 @@ const (
     high
     urgent
 )
+
+var PainLevelMap = map[PainLevelEnum]string {
+    veryLow : "не сильная боль",
+    low : "небольшая боль",
+    medium : "средняя боль",
+    high : "сильная боль",
+    urgent : "невыносимая боль",
+}
 
 type HeadacheEntity struct {
     gorm.Model
@@ -38,6 +51,7 @@ const (
     getDescription
     getMedicines
     getMedicinesEfficacy
+    sendHeadachesEmail
     end
 )
 
@@ -84,10 +98,26 @@ func handleStartState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig) {
             RequestContact:  false,
             RequestLocation: false,
         }
+        queryButton := tgbotapi.KeyboardButton{
+            Text:            "Хочу получить выписку",
+            RequestContact:  false,
+            RequestLocation: false,
+        }
 
-        keyBoard := tgbotapi.NewReplyKeyboard([]tgbotapi.KeyboardButton{headacheButton})
+        keyBoard := tgbotapi.NewReplyKeyboard([]tgbotapi.KeyboardButton{headacheButton, queryButton})
         msg.ReplyMarkup = keyBoard
         _, _ = bot.Send(msg) // do nothing in case of error
+    case "Хочу получить выписку":
+        msg := tgbotapi.NewMessage(message.ChatID, "Введите адрес почты, куда будет отправлен дневник")
+        msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{
+            RemoveKeyboard: true,
+            Selective:      false,
+        }
+        _, err := bot.Send(msg)
+        if err == nil {
+            setDialogueStateByUserId(UserId(message.ChatID), sendHeadachesEmail)
+        }
+
     case "Хочу записать головную боль":
         msg := tgbotapi.NewMessage(message.ChatID, "Оцените вашу боль от 1 до 5, где 1 - "+
             "слабая боль, а 5 - ужасная боль:")
@@ -213,7 +243,7 @@ func handleGetMedicinesState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConf
         panic(err)
     }
 
-    msg := tgbotapi.NewMessage(message.ChatID, "Помогли ли вам лекартсва?")
+    msg := tgbotapi.NewMessage(message.ChatID, "Помогли ли вам лекарства?")
     keyboard := []tgbotapi.KeyboardButton{
         {
             Text:            "Да",
@@ -288,4 +318,100 @@ func handleGetMedicinesEfficacyState(bot *tgbotapi.BotAPI, message *tgbotapi.Mes
 func handleEndState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig) {
     setDialogueStateByUserId(UserId(message.ChatID), start)
     handleStartState(bot, message)
+}
+
+func handleSendHeadachesEmailState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConfig) {
+    emailRegexp := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+    isEmailValid := emailRegexp.MatchString(message.Text)
+
+    if !isEmailValid {
+        msg := tgbotapi.NewMessage(message.ChatID, "Проверьте адрес на ошибки")
+        _, _ = bot.Send(msg)
+        return
+    }
+    userIdStr := strconv.Itoa(int(message.ChatID))
+
+    pdb := getPostgres()
+    var headAches []HeadacheEntity
+    pdb.Find(&headAches, "client_id = ?", userIdStr)
+
+    fileStream := createReport(headAches)
+    result := sendReportToEmail(fileStream, message.Text)
+    if !result {
+        msg := tgbotapi.NewMessage(message.ChatID, "Произошла ошибка при отправке. Попробуйте снова")
+        _, _ = bot.Send(msg)
+        return
+    }
+    msg := tgbotapi.NewMessage(message.ChatID, "Дневник будет отправлен на " + message.Text)
+    _, err := bot.Send(msg)
+    if err == nil {
+        setDialogueStateByUserId(UserId(message.ChatID), end)
+    }
+}
+
+func sendReportToEmail(fileStream *excelize.File, email string) bool {
+    tmpFilename := email + ".xlsx"
+    if err := fileStream.SaveAs(tmpFilename); err != nil {
+        log.Print(err)
+        return false
+    }
+    smtpHost := os.Getenv("SMTP_HOST")
+    smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+    smtpUser := os.Getenv("SMTP_USER")
+    smtpPassword := os.Getenv("SMTP_PASSWORD")
+
+    m := gomail.NewMessage()
+    m.SetHeader("From", smtpUser)
+    m.SetHeader("To", email)
+    m.SetHeader("Subject", "Дневник головных болей")
+    m.Attach(tmpFilename)
+
+    d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPassword)
+
+    if err := d.DialAndSend(m); err != nil {
+        log.Print(err)
+        return false
+    }
+    return true
+}
+
+func createReport(headAches []HeadacheEntity) *excelize.File {
+    output := excelize.NewFile()
+    sheetName := "Дневник"
+    index := output.NewSheet(sheetName)
+    output.SetActiveSheet(index)
+    headers := []string{
+        "ID", "Дата приступа", "Уровень боли",
+        "Описание", "Лекарства", "Эффективность лекарств",
+    }
+    columns := []string {
+        "A", "B", "C", "D", "E", "F",
+    }
+    if len(headers) != len(columns) {
+        panic("check createReport")
+    }
+
+    for ind, header := range headers {
+        cell := columns[ind] + strconv.Itoa(1)
+        output.SetCellValue(sheetName, cell, header)
+    }
+
+    for ind, headAche := range headAches {
+        year, month, day := headAche.CreatedAt.Date()
+        dateTime := fmt.Sprintf("%d/%d/%d", day, month, year)
+        var medicinesEfficacy string
+        if headAche.MedicinesEfficacy {
+            medicinesEfficacy = "помогло"
+        } else {
+            medicinesEfficacy = "не помогло"
+        }
+
+        output.SetCellValue(sheetName, "A"+strconv.Itoa(ind + 2), headAche.ID)
+        output.SetCellValue(sheetName, "B"+strconv.Itoa(ind + 2), dateTime)
+        output.SetCellValue(sheetName, "C"+strconv.Itoa(ind + 2), PainLevelMap[headAche.PainLevel])
+        output.SetCellValue(sheetName, "D"+strconv.Itoa(ind + 2), headAche.Description)
+        output.SetCellValue(sheetName, "E"+strconv.Itoa(ind + 2), headAche.Medicines)
+        output.SetCellValue(sheetName, "F"+strconv.Itoa(ind + 2), medicinesEfficacy)
+    }
+    return output
 }

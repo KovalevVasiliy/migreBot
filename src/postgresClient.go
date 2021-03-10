@@ -5,7 +5,6 @@ import (
     "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm/dialects/postgres"
-    "log"
     "os"
 )
 var db *gorm.DB = nil
@@ -20,7 +19,6 @@ func getPostgres() *gorm.DB {
 
         connectionString := fmt.Sprintf("host=%s port=%s password=%s user=%s dbname=%s sslmode=disable",
             PostgresHost, PostgresPort, PostgresPassword, PostgresUser, PostgresDb)
-        log.Println(connectionString)
         db, err = gorm.Open("postgres", connectionString)
         if err != nil {
             panic(err)
