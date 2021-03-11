@@ -350,7 +350,7 @@ func handleSendHeadachesEmailState(bot *tgbotapi.BotAPI, message *tgbotapi.Messa
 }
 
 func sendReportToEmail(fileStream *excelize.File, email string) bool {
-    tmpFilename := email + ".xlsx"
+    tmpFilename := "/var/excel/" + email + ".xlsx"
     defer os.Remove(tmpFilename)
     if err := fileStream.SaveAs(tmpFilename); err != nil {
         log.Print(err)

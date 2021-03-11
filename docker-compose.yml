@@ -18,6 +18,8 @@ services:
       dockerfile: docker/Dockerfile
     volumes:
       - ./src:/opt/app
+    tmpfs:
+      - /var/excel/:exec,size=500m
     networks:
       - default
     restart: unless-stopped
