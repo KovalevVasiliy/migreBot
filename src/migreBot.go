@@ -82,7 +82,7 @@ func setDialogueStateByUserId(userId UserId, state DialogueState) {
 
     err := rStates.Set(ctx, userIdStr, stateStr, 0).Err()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
 }
 
@@ -177,12 +177,12 @@ func handleGetPainLevelState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConf
             ClientId:UserId(message.ChatID)}
         headAcheBytes, err := json.Marshal(headAche)
         if err != nil {
-            panic(err)
+            log.Print(err)
         }
         userIdStr := strconv.Itoa(int(message.ChatID))
         err = rHeadAches.Set(ctx, userIdStr, string(headAcheBytes), 0).Err()
         if err != nil {
-            panic(err)
+            log.Print(err)
         }
         setDialogueStateByUserId(UserId(message.ChatID), getDescription)
     }
@@ -193,23 +193,23 @@ func handleGetDescriptionState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageCo
     userIdStr := strconv.Itoa(int(message.ChatID))
     headAche, err := rHeadAches.Get(ctx, userIdStr).Result()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     var HeadAcheEntity HeadacheEntity
     err = json.Unmarshal([]byte(headAche), &HeadAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     log.Printf("Read headAche from redis: %+v\n", HeadAcheEntity)
     HeadAcheEntity.Description = message.Text
     log.Printf("Updated headAche to redis: %+v\n", HeadAcheEntity)
     headAcheBytes, err := json.Marshal(HeadAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     err = rHeadAches.Set(ctx, userIdStr, string(headAcheBytes), 0).Err()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
 
     msg := tgbotapi.NewMessage(message.ChatID, "Расскажите, какие лекарства вы принимали?")
@@ -224,23 +224,23 @@ func handleGetMedicinesState(bot *tgbotapi.BotAPI, message *tgbotapi.MessageConf
     userIdStr := strconv.Itoa(int(message.ChatID))
     headAche, err := rHeadAches.Get(ctx, userIdStr).Result()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     var HeadAcheEntity HeadacheEntity
     err = json.Unmarshal([]byte(headAche), &HeadAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     log.Printf("Read headAche from redis: %+v\n", HeadAcheEntity)
     HeadAcheEntity.Medicines = message.Text
     log.Printf("Updated headAche to redis: %+v\n", HeadAcheEntity)
     headAcheBytes, err := json.Marshal(HeadAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     err = rHeadAches.Set(ctx, userIdStr, string(headAcheBytes), 0).Err()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
 
     msg := tgbotapi.NewMessage(message.ChatID, "Помогли ли вам лекарства?")
@@ -280,23 +280,23 @@ func handleGetMedicinesEfficacyState(bot *tgbotapi.BotAPI, message *tgbotapi.Mes
     userIdStr := strconv.Itoa(int(message.ChatID))
     headAche, err := rHeadAches.Get(ctx, userIdStr).Result()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     var headAcheEntity HeadacheEntity
     err = json.Unmarshal([]byte(headAche), &headAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     log.Printf("Read headAche from redis: %+v\n", headAcheEntity)
     headAcheEntity.MedicinesEfficacy = medicinesHelped
     log.Printf("Updated headAche to redis: %+v\n", headAcheEntity)
     headAcheBytes, err := json.Marshal(headAcheEntity)
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
     err = rHeadAches.Set(ctx, userIdStr, string(headAcheBytes), 0).Err()
     if err != nil {
-        panic(err)
+        log.Print(err)
     }
 
     msg := tgbotapi.NewMessage(message.ChatID, "Запись добавлена в электронный дневник " +
