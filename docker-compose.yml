@@ -23,8 +23,6 @@ services:
     networks:
       - default
     restart: unless-stopped
-    ports:
-      - "8000:8000"
   redis:
     restart: unless-stopped
     image: redis
