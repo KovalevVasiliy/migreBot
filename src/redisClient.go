@@ -31,8 +31,5 @@ func initRedis() {
 }
 
 func getRedisAndContext() (*redis.Client, *redis.Client, context.Context) {
-    if redisDialogueState == nil ||  redisTmpHeadAcheEntities == nil {
-        initRedis()
-    }
     return redisDialogueState, redisTmpHeadAcheEntities, ctx
 }
